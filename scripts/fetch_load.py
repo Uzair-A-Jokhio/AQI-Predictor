@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # from dotenv import load_dotenv
     # load_dotenv()
 
-    OPENWEATHER_API_KEY = os.environ.get("OPEN_API")
+    OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")
     HOPSWORKS_PROJECT_NAME = os.environ.get("HOPSWORKS_PROJECT_NAME")
     HOPSWORKS_API_KEY = os.environ.get("HOPSWORKS_API_KEY")
 
