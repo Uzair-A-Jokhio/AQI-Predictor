@@ -69,8 +69,8 @@ def load_to_hopsworks(df, project_name):
     print("Successfully inserted data into Hopsworks Feature Group.")
 
 if __name__ == "__main__":
-    # from dotenv import load_dotenv
-    # load_dotenv()
+    from dotenv import load_dotenv
+    load_dotenv()
 
     OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")
     HOPSWORKS_PROJECT_NAME = os.environ.get("HOPSWORKS_PROJECT_NAME")
@@ -85,4 +85,4 @@ if __name__ == "__main__":
     data_df = fetch_openweather_data(KARACHI_LAT, KARACHI_LON, OPENWEATHER_API_KEY)
     
     # 2. Load data to Hopsworks
-    load_to_hopsworks(data_df, HOPSWORKS_PROJECT_NAME, HOPSWORKS_API_KEY)
+    load_to_hopsworks(data_df, HOPSWORKS_PROJECT_NAME)
