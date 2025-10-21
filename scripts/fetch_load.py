@@ -12,7 +12,7 @@ def fetch_openweather_data(lat, lon, api_key):
     pollution_response = requests.get(pollution_url)
     pollution_data = pollution_response.json()['list'][0]
 
-    # 2. Fetch Weather Data (using the 5-day/3-hour forecast)
+    # 2. Fetch Weather Data 
     weather_url = f"http://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={api_key}&units=metric"
     weather_response = requests.get(weather_url)
     # Get the most recent forecast entry
@@ -23,8 +23,8 @@ def fetch_openweather_data(lat, lon, api_key):
     dt_obj = datetime.utcfromtimestamp(dt_int)
     # 3. Combine the data into a single dictionary
     combined_data = {
-        'timestamp_int': [dt_int],    # <-- ADDED: The integer for the primary key
-        'timestamp_utc': [dt_obj],    # <-- RENAMED:
+        'timestamp_int': [dt_int],   
+        'timestamp_utc': [dt_obj],    
         'latitude': [lat],
         'longitude': [lon],
         'aqi': [pollution_data['main']['aqi']],
@@ -48,7 +48,7 @@ def fetch_openweather_data(lat, lon, api_key):
     print(df.head())
     return df
 
-def load_to_hopsworks(df, project_name, api_key):
+def load_to_hopsworks(df, project_name):
     """Connects to Hopsworks and inserts data into a Feature Group."""
     
     project = hopsworks.login(project=project_name)
@@ -69,29 +69,18 @@ def load_to_hopsworks(df, project_name, api_key):
     print("Successfully inserted data into Hopsworks Feature Group.")
 
 if __name__ == "__main__":
-    # --- For local testing, you can use a .env file ---
-    from dotenv import load_dotenv
-    load_dotenv()
+    # from dotenv import load_dotenv
+    # load_dotenv()
 
-    # --- In GitHub Actions, these will be set as environment variables ---
     OPENWEATHER_API_KEY = os.environ.get("OPEN_API")
     HOPSWORKS_PROJECT_NAME = os.environ.get("HOPSWORKS_PROJECT_NAME")
     HOPSWORKS_API_KEY = os.environ.get("HOPSWORKS_API_KEY")
 
-    # Coordinates for Karachi, Pakistan (as an example)
     KARACHI_LAT = 24.8607
     KARACHI_LON = 67.0011
 
-    # if not all([OPENWEATHER_API_KEY, HOPSWORKS_PROJECT_NAME, HOPSWORKS_API_KEY]):
-    #     raise ValueError("One or more required environment variables are not set.")
-    if not OPENWEATHER_API_KEY:
-        raise ValueError("error at OPENWEATHER_API_KEY")
-    if not HOPSWORKS_PROJECT_NAME:
-        raise ValueError("error at HOPSWORKS_PROJECT_NAME")
-    if not HOPSWORKS_API_KEY:
-        raise ValueError("Error at HOPSWORKS_API_KEY")
-    
-
+    if not all([OPENWEATHER_API_KEY, HOPSWORKS_PROJECT_NAME, HOPSWORKS_API_KEY]):
+        raise ValueError("One or more required environment variables are not set.")
     # 1. Fetch data
     data_df = fetch_openweather_data(KARACHI_LAT, KARACHI_LON, OPENWEATHER_API_KEY)
     

@@ -1,1 +1,4 @@
 hopsworks[python]
+pandas
+requests
+hopsworks
