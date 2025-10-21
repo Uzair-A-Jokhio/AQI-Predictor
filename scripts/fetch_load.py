@@ -69,8 +69,8 @@ def load_to_hopsworks(df, project_name):
     print("Successfully inserted data into Hopsworks Feature Group.")
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-    load_dotenv()
+    # from dotenv import load_dotenv
+    # load_dotenv()
 
     OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")
     HOPSWORKS_PROJECT_NAME = os.environ.get("HOPSWORKS_PROJECT_NAME")
