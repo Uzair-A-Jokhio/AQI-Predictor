@@ -27,7 +27,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Feature Processing Script
-        run: python create_ml_feature_group.py
+        run: python scripts/create_ml_feature_group.py
         
         env:
           HOPSWORKS_PROJECT_NAME: ${{ secrets.HOPSWORKS_PROJECT_NAME }}
