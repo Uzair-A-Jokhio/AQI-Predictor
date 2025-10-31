@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import hopsworks
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 # --- 1. AQI Calculation Functions ---
 # (These are the same helpers from the notebook)
@@ -113,7 +113,7 @@ def run_feature_pipeline():
 
 
 if __name__ == "__main__":
-    load_dotenv()
+    # load_dotenv()
     
     if not os.environ.get("HOPSWORKS_PROJECT_NAME") or not os.environ.get("HOPSWORKS_API_KEY"):
         print("Error: HOPSWORKS_PROJECT_NAME or HOPSWORKS_API_KEY not set in .env file.")
