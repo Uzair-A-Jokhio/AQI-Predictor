@@ -9,11 +9,11 @@ import joblib
 import hopsworks
 from dotenv import load_dotenv
 
-# --- 1. Function to Download Model from Registry ---
+# --- 1. Function to Download Model and Metrics ---
 @st.cache_resource
-def load_model_from_registry():
+def load_model_and_metrics():
     """
-    Connects to Hopsworks and downloads the model and scaler.
+    Connects to Hopsworks and downloads the model, scaler, and its metrics.
     """
     with st.spinner("Connecting to Model Registry..."):
         try:
@@ -27,10 +27,13 @@ def load_model_from_registry():
             model = joblib.load(os.path.join(model_dir, "model.pkl"))
             scaler = joblib.load(os.path.join(model_dir, "scaler.pkl"))
             
-            return model, scaler
+            # Get the metrics that were saved during training
+            metrics = model_obj.training_metrics 
+            
+            return model, scaler, metrics
         except Exception as e:
             st.error(f"Error loading model: {e}")
-            return None, None
+            return None, None, None
 
 # --- 2. Function to Get 3-Day Forecast Data ---
 @st.cache_data(ttl=3600) # Cache the API call for 1 hour
@@ -74,6 +77,7 @@ def get_3_day_forecast_data(owm_api_key):
                 key=lambda x: abs(x['dt'] - poll_dt)
             )
             
+            # This is the feature order the model expects
             feature_row = [
                 poll_forecast['components']['pm2_5'],
                 poll_forecast['components']['pm10'],
@@ -107,6 +111,16 @@ st.set_page_config(
     layout="wide"
 )
 
+# This list must match the *exact* order of features in the function above
+FEATURE_NAMES = [
+    'pm2_5',
+    'pm10',
+    'o3',
+    'temp',
+    'hour_of_day',
+    'day_of_month'
+]
+
 # Load the OpenWeather API key
 try:
     load_dotenv()
@@ -115,15 +129,17 @@ except KeyError:
     st.error("OPENWEATHER_API_KEY not found in .env file. Please add it.")
     OWM_API_KEY = None
 
-# Load the model and scaler
-model, scaler = load_model_from_registry()
+# Load the model, scaler, AND metrics
+model, scaler, metrics = load_model_and_metrics()
 
 # --- Sidebar ---
 st.sidebar.title("Controls")
 st.sidebar.info("This app predicts the AQI for Karachi, Pakistan over the next 3 days.")
+st.sidebar.divider()
 
+# --- Main App Logic ---
 if not OWM_API_KEY or not model or not scaler:
-    st.sidebar.error("App is not configured. Missing API keys or failed model load.")
+    st.sidebar.error("App is not configured. Check keys/model.")
 else:
     if st.sidebar.button("🚀 Generate 3-Day Forecast", type="primary"):
         
@@ -144,15 +160,30 @@ else:
             display_df['Predicted AQI'] = predictions
             display_df['Forecast Time'] = pd.to_datetime(display_df['Forecast Time'])
             
-            # Calculate summary metrics
-            avg_aqi = round(display_df['Predicted AQI'].mean())
-            max_aqi = round(display_df['Predicted AQI'].max())
-            max_aqi_time = display_df.loc[display_df['Predicted AQI'].idxmax()]['Forecast Time'].strftime('%a, %b %d at %I %p')
-
             st.header("Forecast Summary")
-            col1, col2 = st.columns(2)
-            col1.metric("Average AQI (Next 3 Days)", f"{avg_aqi}")
-            col2.metric(f"Peak AQI (on {max_aqi_time})", f"{max_aqi}")
+            
+            # --- 1. Overall Peak (Centered) ---
+            # max_aqi = round(display_df['Predicted AQI'].max())
+            # max_aqi_time = display_df.loc[display_df['Predicted AQI'].idxmax()]['Forecast Time'].strftime('%a, %b %d at %I %p')
+            # _, col_peak, _ = st.columns([1, 1.5, 1])
+            # col_peak.metric(f"Overall Peak AQI (on {max_aqi_time})", f"{max_aqi}")
+            
+            st.divider()
+
+            # --- 2. Daily Breakdown (in 3 columns) ---
+            st.subheader("Daily Breakdown")
+            
+            # Group by date and calculate the mean and max for each day
+            daily_groups = display_df.groupby(display_df['Forecast Time'].dt.date)['Predicted AQI']
+            daily_stats = daily_groups.agg(['mean', 'max']).head(3) # Use .head(3) for first 3 days
+            
+            cols = st.columns(3)
+            
+            for i, (date, stats) in enumerate(daily_stats.iterrows()):
+                with cols[i]:
+                    day_str = date.strftime('%a, %b %d')
+                    st.metric(f"Average AQI ({day_str})", f"{stats['mean']:.0f}")
+                    st.metric(f"Peak AQI ({day_str})", f"{stats['max']:.0f}")
 
             # --- Use Tabs for Chart and Data ---
             tab1, tab2 = st.tabs(["📈 Forecast Chart", "🗃️ Raw Data"])
@@ -166,6 +197,40 @@ else:
                 # Format the time for better display in the table
                 display_df['Forecast Time'] = display_df['Forecast Time'].dt.strftime('%Y-%m-%d %H:%M')
                 st.dataframe(display_df)
+            
+            # --- Model Details Section (Moved to Main Page) ---
+            st.divider() 
+            st.header("Model Details")
+            st.write("This section shows the performance and features of the GradientBoosting model used for this forecast.")
+
+            col1, col2 = st.columns(2)
+
+            # --- Display Model Performance ---
+            with col1:
+                st.subheader("Model Performance")
+                if metrics:
+                    r2 = metrics.get('r2_score', 0)
+                    mae = metrics.get('mae', 0)
+                    st.metric("Model R² Score", f"{r2:.4f}")
+                    st.metric("Model MAE (Avg. Error)", f"{mae:.2f} AQI")
+                else:
+                    st.warning("Could not load model performance metrics.")
+            
+            # --- Display Feature Importance ---
+            with col2:
+                st.subheader("Model Feature Importance")
+                if model:
+                    try:
+                        importances = model.feature_importances_
+                        importance_df = pd.DataFrame({
+                            'Feature': FEATURE_NAMES,
+                            'Importance': importances
+                        }).sort_values(by='Importance', ascending=False)
+                        st.bar_chart(importance_df.set_index('Feature'))
+                    except Exception as e:
+                        st.error(f"Could not load feature importance: {e}")
+                else:
+                    st.warning("Model not loaded, cannot show feature importance.")
             
         else:
             st.error("Failed to get forecast data.")
