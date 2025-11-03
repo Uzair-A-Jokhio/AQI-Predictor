@@ -1,15 +1,21 @@
-name: Daily ML Feature Engineering
+name: Daily Model Training
 
 on:
-  schedule:
-    # This now runs at minute 0 of every 23rd hour
-    - cron: '0 */24 * * *'
-  
+  # This is the key:
+  # It triggers this workflow when the 'Daily ML Feature Engineering'
+  # workflow has successfully completed.
+  workflow_run:
+    workflows: ["Daily ML Feature Engineering"] # <-- Must match the 'name:' in feature_processing.yml
+    types:
+      - completed
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  process-and-load-features:
+  train-and-save-model:
+    # Only run if the previous workflow was successful
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     
     steps:
@@ -26,8 +32,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Feature Processing Script
-        run: python scripts/create_ml_feature_group.py
+      - name: Run Model Training Script
+        run: python scripts/train_model.py
         
         env:
           HOPSWORKS_PROJECT_NAME: ${{ secrets.HOPSWORKS_PROJECT_NAME }}
