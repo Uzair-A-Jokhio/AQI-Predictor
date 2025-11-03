@@ -5,7 +5,7 @@ import hopsworks
 import pandas as pd
 import numpy as np
 import joblib  # For saving the model artifact
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score, mean_absolute_error
@@ -20,7 +20,7 @@ def train_and_save_model():
     
     # --- 1. Connect and Read Data ---
     print("Connecting to Hopsworks...")
-    load_dotenv()
+    # load_dotenv()
     project = hopsworks.login(project=os.environ.get("HOPSWORKS_PROJECT_NAME"))
     fs = project.get_feature_store()
 
