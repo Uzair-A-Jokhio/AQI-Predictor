@@ -5,3 +5,4 @@ hopsworks
 numpy
 scikit-learn
 joblib
+streamlit
