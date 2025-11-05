@@ -1,5 +1,3 @@
-# Save this as app.py
-
 import streamlit as st
 import pandas as pd
 import os
@@ -7,10 +5,9 @@ import requests
 import datetime
 import joblib
 import hopsworks
-import numpy as np # Make sure numpy is imported
+import numpy as np 
 from dotenv import load_dotenv
 
-# --- 1. Function to Download ALL Models and Metrics ---
 @st.cache_resource
 def load_all_models_and_metrics():
     """
@@ -23,7 +20,6 @@ def load_all_models_and_metrics():
             project = hopsworks.login(project=os.environ.get("HOPSWORKS_PROJECT_NAME"))
             mr = project.get_model_registry()
             
-            # This list now includes all 3 models
             model_names = ["ridge", "randomforest", "gradientboosting"]
             models = {}
             all_metrics = {}
@@ -33,7 +29,7 @@ def load_all_models_and_metrics():
             for name in model_names:
                 model_full_name = f"aqi_predictor_{name.lower()}"
                 try:
-                    model_obj = mr.get_model(name=model_full_name) # Get latest version
+                    model_obj = mr.get_model(name=model_full_name) 
                     model_dir = model_obj.download()
                     
                     models[name] = joblib.load(os.path.join(model_dir, "model.pkl"))
@@ -41,7 +37,7 @@ def load_all_models_and_metrics():
                 except Exception as e:
                     st.warning(f"Could not load model '{model_full_name}'. Skipping. Error: {e}")
             
-            # The scaler is the same for all, so we just grab one
+            
             scaler_dir = mr.get_model("aqi_predictor_gradientboosting").download()
             scaler = joblib.load(os.path.join(scaler_dir, "scaler.pkl"))
             
@@ -51,8 +47,7 @@ def load_all_models_and_metrics():
             st.error(f"Fatal error loading models: {e}")
             return None, None, None
 
-# --- 2. Function to Get 3-Day Forecast Data ---
-@st.cache_data(ttl=3600) # Cache the API call for 1 hour
+@st.cache_data(ttl=3600)
 def get_3_day_forecast_data(owm_api_key):
     """
     Fetches 72 hours of future pollutant and weather data from OpenWeather.
@@ -61,7 +56,6 @@ def get_3_day_forecast_data(owm_api_key):
     LON = 67.0011
     
     try:
-        # === API Call 1: Get Future Pollutants (Hourly) ===
         pollution_url = (
             f"http://api.openweathermap.org/data/2.5/air_pollution/forecast"
             f"?lat={LAT}&lon={LON}&appid={owm_api_key}"
@@ -70,7 +64,6 @@ def get_3_day_forecast_data(owm_api_key):
         response_poll.raise_for_status()
         poll_data = response_poll.json()['list']
 
-        # === API Call 2: Get Future Weather (3-Hourly) ===
         weather_url = (
             f"http://api.openweathermap.org/data/2.5/forecast"
             f"?lat={LAT}&lon={LON}&appid={owm_api_key}&units=metric"
@@ -79,11 +72,10 @@ def get_3_day_forecast_data(owm_api_key):
         response_weather.raise_for_status()
         weather_data_list = response_weather.json()['list']
         
-        # === 3. Process all 72 hours ===
         all_features = []
         display_data = []
         
-        for i in range(72): # Get all 72 hours
+        for i in range(72): 
             poll_forecast = poll_data[i]
             poll_dt = poll_forecast['dt']
             forecast_time = datetime.datetime.fromtimestamp(poll_dt, tz=datetime.timezone.utc)
@@ -93,7 +85,6 @@ def get_3_day_forecast_data(owm_api_key):
                 key=lambda x: abs(x['dt'] - poll_dt)
             )
             
-            # This is the feature order the model expects
             feature_row = [
                 poll_forecast['components']['pm2_5'],
                 poll_forecast['components']['pm10'],
@@ -105,7 +96,7 @@ def get_3_day_forecast_data(owm_api_key):
             all_features.append(feature_row)
             
             display_data.append({
-                "Forecast Time": forecast_time, # Keep as datetime for charting
+                "Forecast Time": forecast_time, 
                 "pm2_5": poll_forecast['components']['pm2_5'],
                 "pm10": poll_forecast['components']['pm10'],
                 "o3": poll_forecast['components']['o3'],
@@ -118,7 +109,6 @@ def get_3_day_forecast_data(owm_api_key):
         st.error(f"Error fetching data from OpenWeather: {e}")
         return None, None
 
-# --- 3. Streamlit UI ---
 
 st.set_page_config(
     page_title="AQI Model Comparison",
@@ -126,7 +116,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# This list must match the *exact* order of features in the function above
 FEATURE_NAMES = [
     'pm2_5',
     'pm10',
@@ -136,7 +125,6 @@ FEATURE_NAMES = [
     'day_of_month'
 ]
 
-# Load the OpenWeather API key
 try:
     load_dotenv()
     OWM_API_KEY = os.environ["OPENWEATHER_API_KEY"]
@@ -144,21 +132,17 @@ except KeyError:
     st.error("OPENWEATHER_API_KEY not found in .env file. Please add it.")
     OWM_API_KEY = None
 
-# Load all models, scaler, AND metrics
 models, scaler, all_metrics = load_all_models_and_metrics()
 
-# --- Sidebar ---
 st.sidebar.title("Controls")
 st.sidebar.info("This app predicts the AQI for Karachi, Pakistan over the next 3 days using 3 different ML models.")
 st.sidebar.divider()
 
-# --- Main App Logic ---
 if not OWM_API_KEY or not models or not scaler:
     st.sidebar.error("App is not configured. Check keys/models.")
 else:
     if st.sidebar.button("🚀 Generate 3-Day Forecast", type="primary"):
         
-        # --- Main Page Content ---
         st.title("☁️ 3-Day AQI Forecast & Model Comparison")
         
         with st.spinner("Fetching 72 hours of forecast data..."):
@@ -172,26 +156,20 @@ else:
                 
                 prediction_df = pd.DataFrame()
                 for name, model in models.items():
-                    # Capitalize model name for display
                     prediction_df[name.capitalize()] = model.predict(X_scaled)
                 
                 prediction_df['Forecast Time'] = pd.to_datetime(display_df['Forecast Time'])
 
-            # --- Display the Results ---
             st.header("Forecast Summary")
             
-            # --- START OF MODIFIED SECTION ---
             
             st.subheader("Model Prediction Summary (Next 72 Hours)")
             
-            # 1. Group by date and get stats for ALL models at once
             daily_groups = prediction_df.groupby(prediction_df['Forecast Time'].dt.date)
-            # This creates a multi-index DataFrame
             daily_stats_df = daily_groups[['Gradientboosting', 'Randomforest', 'Ridge']].agg(['mean', 'max']).head(3)
 
             col1, col2, col3 = st.columns(3)
 
-            # --- GradientBoosting Column ---
             with col1:
                 st.write("##### 🥇 GradientBoosting (Best)")
                 # Loop through the 3 days for this model
@@ -201,7 +179,6 @@ else:
                     st.metric(f"Peak ({day_str})", f"{stats[('Gradientboosting', 'max')]:.0f}")
                     st.divider() # Add a small divider between days
 
-            # --- RandomForest Column ---
             with col2:
                 st.write("##### 🥈 RandomForest")
                 for date, stats in daily_stats_df.iterrows():
@@ -210,7 +187,6 @@ else:
                     st.metric(f"Peak ({day_str})", f"{stats[('Randomforest', 'max')]:.0f}")
                     st.divider()
 
-            # --- Ridge Column ---
             with col3:
                 st.write("##### 🥉 Ridge")
                 for date, stats in daily_stats_df.iterrows():
@@ -219,9 +195,7 @@ else:
                     st.metric(f"Peak ({day_str})", f"{stats[('Ridge', 'max')]:.0f}")
                     st.divider()
 
-            # --- END OF MODIFIED SECTION ---
 
-            # --- Use Tabs for Chart and Data ---
             tab1, tab2, tab3 = st.tabs(["📈 Model Comparison Chart", "📊 Model Performance", "🗃️ Raw Data"])
 
             with tab1:
@@ -247,7 +221,6 @@ else:
                 
                 col1_fi, col2_fi, col3_fi = st.columns(3)
 
-                # --- GradientBoosting Importance ---
                 with col1_fi:
                     st.write("##### GradientBoosting")
                     try:
@@ -259,7 +232,6 @@ else:
                     except Exception as e:
                         st.error(f"Could not load GB importance: {e}")
 
-                # --- RandomForest Importance ---
                 with col2_fi:
                     st.write("##### RandomForest")
                     try:
@@ -271,7 +243,6 @@ else:
                     except Exception as e:
                         st.error(f"Could not load RF importance: {e}")
 
-                # --- Ridge Importance (Coefficients) ---
                 with col3_fi:
                     st.write("##### Ridge (Coefficient Magnitude)")
                     try:
@@ -286,7 +257,6 @@ else:
 
             with tab3:
                 st.subheader("Raw Forecast Data")
-                # Join predictions with the raw data for the table
                 table_df = display_df.join(prediction_df.drop(columns='Forecast Time'))
                 table_df['Forecast Time'] = table_df['Forecast Time'].dt.strftime('%Y-%m-%d %H:%M')
                 st.dataframe(table_df)
