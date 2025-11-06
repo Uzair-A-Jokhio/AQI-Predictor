@@ -1,3 +1,4 @@
+[![Daily ML Feature Engineering](https://github.com/Uzair-A-Jokhio/AQI-Predictor/actions/workflows/feature_preprocessing.yml/badge.svg)](https://github.com/Uzair-A-Jokhio/AQI-Predictor/actions/workflows/feature_preprocessing.yml) [![Daily Model Training](https://github.com/Uzair-A-Jokhio/AQI-Predictor/actions/workflows/model_traning.yml/badge.svg)](https://github.com/Uzair-A-Jokhio/AQI-Predictor/actions/workflows/model_traning.yml)  [![Hourly AQI Data Collector](https://github.com/Uzair-A-Jokhio/AQI-Predictor/actions/workflows/main.yml/badge.svg)](https://github.com/Uzair-A-Jokhio/AQI-Predictor/actions/workflows/main.yml)
 # End-to-End MLOps AQI Predictor
 
 This repository contains the complete code for an end-to-end MLOps pipeline that forecasts the Air Quality Index (AQI) for Karachi, Pakistan.
