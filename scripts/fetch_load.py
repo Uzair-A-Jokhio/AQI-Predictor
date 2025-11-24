@@ -3,19 +3,26 @@ import requests
 import pandas as pd
 import hopsworks
 from datetime import datetime
+from dotenv import load_dotenv
 
 def fetch_openweather_data(lat, lon, api_key):
     """Fetches weather and air pollution data from OpenWeatherMap."""
     
+    # 1. Fetch Air Pollution Data
     pollution_url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={api_key}"
     pollution_response = requests.get(pollution_url)
     pollution_data = pollution_response.json()['list'][0]
 
+    # 2. Fetch Weather Data
     weather_url = f"http://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={api_key}&units=metric"
     weather_response = requests.get(weather_url)
     weather_data = weather_response.json()['list'][0]
+
+    # Get timestamps
     dt_int = pollution_data['dt'] 
     dt_obj = datetime.utcfromtimestamp(dt_int)
+
+    # 3. Combine Data
     combined_data = {
         'timestamp_int': [dt_int],   
         'timestamp_utc': [dt_obj],    
@@ -37,7 +44,17 @@ def fetch_openweather_data(lat, lon, api_key):
     }
 
     df = pd.DataFrame(combined_data)
+    
+    # --- THE FIX: FORCE FLOAT TYPES ---
+    # Hopsworks expects 'double' for these columns. 
+    # If the API returns an integer (e.g., so2 = 5), pandas might infer it as int64.
+    # We force it to be float to match the schema.
+    float_cols = ['co', 'no2', 'o3', 'so2', 'pm2_5', 'pm10', 'temp', 'feels_like', 'wind_speed', 'pressure']
+    for col in float_cols:
+        df[col] = df[col].astype(float)
+        
     print("Successfully fetched and combined data.")
+    print(df.dtypes) # Print dtypes to verify
     print(df.head())
     return df
 
@@ -70,6 +87,7 @@ if __name__ == "__main__":
 
     if not all([OPENWEATHER_API_KEY, HOPSWORKS_PROJECT_NAME, HOPSWORKS_API_KEY]):
         raise ValueError("One or more required environment variables are not set.")
+        
     data_df = fetch_openweather_data(KARACHI_LAT, KARACHI_LON, OPENWEATHER_API_KEY)
     
     load_to_hopsworks(data_df, HOPSWORKS_PROJECT_NAME)
